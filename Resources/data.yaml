@@ -1,0 +1,13 @@
+train: D:\Open cv real time face recognition system\Resources\train\images
+val: D:\Open cv real time face recognition system\Resources\valid\images
+test: D:\Open cv real time face recognition system\Resources\test\images
+
+nc: 2
+names: ['face - v1 2024-04-15 8-33pm', 'face_cover_one_category 2 - v1 2025-01-02 2-24am']
+
+roboflow:
+  workspace: waruna-gunarathna
+  project: faces_covers_merge_small-rc6e3
+  version: 1
+  license: CC BY 4.0
+  url: https://app.roboflow.com/waruna-gunarathna/faces_covers_merge_small-rc6e3/1

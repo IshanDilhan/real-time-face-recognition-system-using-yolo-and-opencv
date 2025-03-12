@@ -1,0 +1,22 @@
+You can achieve this by following these steps:
+
+1. **Collect and Preprocess Data**  
+   - Capture five images per student.
+   - Preprocess images (grayscale conversion, normalization, etc.).
+   - Store them with labeled IDs.
+
+2. **Train the Model**  
+   - Use OpenCV's `face_recognition` module or train a deep learning model with YOLO for face detection.
+   - Train a face embedding model (e.g., FaceNet, OpenFace) to extract features.
+   - Store face embeddings in a database for recognition.
+
+3. **Face Recognition in Video**  
+   - Use YOLO for real-time face detection.
+   - Extract face embeddings and compare them with stored embeddings.
+   - If a match is found, mark attendance.
+
+4. **Database Integration (MongoDB)**  
+   - Store student details and attendance records.
+   - Update attendance automatically after recognition.
+
+Would you like a detailed implementation guide or sample code?
