@@ -20,3 +20,8 @@ You can achieve this by following these steps:
    - Update attendance automatically after recognition.
 
 Would you like a detailed implementation guide or sample code?
+
+
+
+
+pip install -r requirements.txt
