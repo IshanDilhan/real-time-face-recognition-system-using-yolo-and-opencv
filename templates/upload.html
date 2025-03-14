@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Student</title>
+</head>
+<body>
+    <h2>Register Student</h2>
+    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+        <label for="student_name">Student Name:</label>
+        <input type="text" name="student_name" required>
+        <input type="file" name="images" multiple required>
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>

@@ -5,7 +5,6 @@ import numpy as np
 import pickle
 from deepface import DeepFace
 from ultralytics import YOLO
-from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -18,8 +17,8 @@ ENCODINGS_FILE = "encodings.pkl"
 app.config["UPLOAD_FOLDER"] = IMAGE_UPLOAD_FOLDER
 app.config["VIDEO_FOLDER"] = VIDEO_UPLOAD_FOLDER
 
-# Connect to MongoDB
-##client = MongoClient("mongodb://localhost:27017/")
+# Connect to MongoDB (Commented)
+# client = MongoClient("mongodb://localhost:27017/")
 # db = client["facetrack"]
 # attendance_collection = db["attendance"]
 
@@ -30,6 +29,7 @@ face_model = YOLO("model/best.pt")
 if os.path.exists(ENCODINGS_FILE):
     with open(ENCODINGS_FILE, "rb") as f:
         student_encodings = pickle.load(f)
+    print("✅ Loaded existing student encodings.")
 else:
     student_encodings = {}
 
@@ -42,6 +42,11 @@ def save_encodings():
 @app.route("/")
 def home():
     return render_template("index.html")
+
+@app.route('/detect')
+def detect():
+    return "Face detection feature is not implemented yet"
+
 
 # Upload Images
 @app.route("/upload", methods=["GET", "POST"])
@@ -56,23 +61,10 @@ def upload():
             filename = secure_filename(img.filename)
             img.save(os.path.join(student_folder, filename))
 
-        # Encode student images
-        encodings = []
-        for img_file in os.listdir(student_folder):
-            img_path = os.path.join(student_folder, img_file)
-            try:
-                embedding = DeepFace.represent(img_path, model_name="Facenet")[0]["embedding"]
-                encodings.append(np.array(embedding))
-            except:
-                print(f"Skipping {img_path} due to error")
-
-        if encodings:
-            student_encodings[student_name] = np.mean(encodings, axis=0)
-            save_encodings()
-
         return redirect(url_for("home"))
 
-    return render_template("upload.html")
+    return render_template("upload.html")  # Make sure upload.html exists
+
 
 # Upload Video
 @app.route("/upload_video", methods=["POST"])
@@ -126,16 +118,18 @@ def detect_video(filename):
 
     cap.release()
 
-    # Store in MongoDB
-    for student in detected_students:
-        attendance_collection.insert_one({"student": student})
+    # Store in MongoDB (Commented)
+    # for student in detected_students:
+    #     attendance_collection.insert_one({"student": student})
 
     return redirect(url_for("attendance"))
 
-# View Attendance
+# View Attendance (Dummy Page since MongoDB is commented)
 @app.route("/attendance")
 def attendance():
-    records = attendance_collection.find()
+    # If MongoDB is used, uncomment the next line
+    # records = attendance_collection.find()
+    records = []  # Empty records since MongoDB is disabled
     return render_template("results.html", records=records)
 
 if __name__ == "__main__":

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Face Detection</h1>
+
+        <h2>Upload Recorded Video</h2>
+        <form action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data">
+            <input type="file" name="video" required>
+            <button type="submit" class="btn">Upload & Detect</button>
+        </form>
+
+        <h2>Or Start Real-Time Detection</h2>
+        <a href="{{ url_for('detect_realtime') }}" class="btn">📡 Start Webcam</a>
+
+        <a href="{{ url_for('home') }}" class="btn">⬅️ Back</a>
+    </div>
+</body>
+</html>
