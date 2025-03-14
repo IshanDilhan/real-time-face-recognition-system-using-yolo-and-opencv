@@ -1,0 +1,7 @@
+# ignore ALL .log files
+*.log
+
+# ignore ALL files in ANY directory named temp
+__pycache__
+students/videos
+students/students_images
