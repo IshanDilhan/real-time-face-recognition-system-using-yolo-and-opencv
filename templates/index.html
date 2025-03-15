@@ -5,13 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FaceTrack Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        /* General Page Styling */
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: 400px;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #333;
+        }
+        .btn {
+            display: block;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>🎓 FaceTrack Attendance</h1>
+        
         <a href="{{ url_for('upload') }}" class="btn">📸 Register Student</a>
-        <!-- <a href="{{ url_for('detect') }}" class="btn">🎥 Face Detection</a>
-        <a href="{{ url_for('attendance') }}" class="btn">📋 View Attendance</a> -->
+        <a href="{{ url_for('upload') }}" class="btn">🎥 Face Detection</a>
+        <a href="{{ url_for('attendance') }}" class="btn">📋 View Attendance</a>
+        <a href="{{ url_for('home') }}" class="btn">🏠 Home</a>
     </div>
 </body>
 </html>

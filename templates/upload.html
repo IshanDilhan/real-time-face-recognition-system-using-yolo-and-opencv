@@ -1,17 +1,299 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Student</title>
-</head>
-<body>
-    <h2>Register Student</h2>
-    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
-        <label for="student_name">Student Name:</label>
-        <input type="text" name="student_name" required>
-        <input type="file" name="images" multiple required>
-        <button type="submit">Upload</button>
-    </form>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manage Students</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        fetchStudents();
+      });
+
+      function fetchStudents() {
+        fetch("/get_students")
+          .then((response) => response.json())
+          .then((data) => {
+            let select = document.getElementById("student_select");
+            select.innerHTML = `<option value="">Select Student</option>`;
+            data.forEach((student) => {
+              select.innerHTML += `<option value="${student}">${student}</option>`;
+            });
+
+            select.addEventListener("change", function () {
+              let student = this.value;
+              if (student) {
+                fetchImages(student);
+              } else {
+                document.getElementById("images_container").innerHTML = "";
+              }
+            });
+          });
+      }
+      function deleteImage(student, image) {
+  if (confirm(`Are you sure you want to delete ${image}?`)) {
+    fetch("/delete_image", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `student_name=${student}&image_name=${image}`,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "success") {
+          alert("Image deleted successfully!");
+          fetchImages(student); // Refresh images
+        } else {
+          alert("Error: " + data.message);
+        }
+      })
+      .catch((error) => {
+        console.error("Error deleting image:", error);
+        alert("Failed to delete image.");
+      });
+  }
+}
+
+
+      function fetchImages(student) {
+        fetch(`/get_images/${student}`)
+          .then((response) => response.json())
+          .then((images) => {
+            let imagesContainer = document.getElementById("images_container");
+            imagesContainer.innerHTML = "";
+
+            if (images.length === 0) {
+              imagesContainer.innerHTML = "<p>No images found for this student.</p>";
+              return;
+            }
+
+            images.forEach((image) => {
+              let imageUrl = `/students/images/${student}/${image}`;
+              imagesContainer.innerHTML += `
+  <div class="image-box">
+    <img src="${imageUrl}" class="student-image" onerror="this.onerror=null; this.src='/static/default.jpg'">
+    <div class="image-actions">
+      <button class="btn btn-danger" onclick="deleteImage('${student}', '${image}')">🗑 Delete</button>
+    </div>
+  </div>
+`;
+
+            });
+          });
+      }
+      function deleteFolder() {
+  let student = document.getElementById("student_select").value;
+
+  if (!student) {
+    alert("Please select a student folder to delete.");
+    return;
+  }
+
+  if (confirm(`Are you sure you want to delete the folder for ${student}? This will remove all images.`)) {
+    fetch("/delete_folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `student_name=${student}`,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === "success") {
+          alert("Folder deleted successfully!");
+          fetchStudents(); // Refresh student list
+          document.getElementById("images_container").innerHTML = ""; // Clear images
+        } else {
+          alert("Error: " + data.message);
+        }
+      })
+      .catch((error) => {
+        console.error("Error deleting folder:", error);
+        alert("Failed to delete folder.");
+      });
+  }
+}
+function addStudent() {
+        let studentName = document.getElementById("new_student_name").value.trim();
+        if (studentName === "") {
+          alert("Please enter a student name.");
+          return;
+        }
+
+        fetch("/add_student", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `student_name=${studentName}`,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              alert("Student folder created!");
+              document.getElementById("new_student_name").value = "";
+              fetchStudents(); // Refresh student list
+            } else {
+              alert("Error: " + data.message);
+            }
+          });
+      }
+
+      function uploadImage() {
+        let student = document.getElementById("student_select").value;
+        let fileInput = document.getElementById("image_upload");
+
+        if (!student) {
+          alert("Please select a student first.");
+          return;
+        }
+
+        if (fileInput.files.length === 0) {
+          alert("Please select an image to upload.");
+          return;
+        }
+
+        let formData = new FormData();
+        formData.append("student_name", student);
+        formData.append("image", fileInput.files[0]);
+
+        fetch("/upload_image", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              alert("Image uploaded successfully!");
+              fileInput.value = ""; // Clear input
+              fetchImages(student); // Refresh images
+            } else {
+              alert("Error: " + data.message);
+            }
+          });
+      }
+    </script>
+
+    <style>
+      body {
+  font-family: "Poppins", Arial, sans-serif;
+  background: linear-gradient(135deg, #74ebd5, #acb6e5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  width: 420px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.container:hover {
+  transform: scale(1.02);
+}
+
+h2 {
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+input,
+select,
+button {
+  padding: 10px;
+  margin: 10px 0;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+.btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.btn:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: #e74c3c;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+}
+
+/* Image Box */
+.image-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 10px 0;
+  transition: transform 0.2s ease-in-out;
+}
+
+.image-box:hover {
+  transform: scale(1.05);
+}
+
+.student-image {
+  width: 85px;
+  height: 85px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #3498db;
+}
+
+.image-actions {
+  display: flex;
+  gap: 10px;
+}
+
+hr {
+  border: 0;
+  height: 1px;
+  background: #ddd;
+  margin: 15px 0;
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>📸 Manage Students</h2>
+
+      <!-- Add Student Section -->
+      <input type="text" id="new_student_name" placeholder="Enter student name" />
+      <button class="btn" onclick="addStudent()">➕ Add Student</button>
+
+      <hr />
+
+      <!-- Select Student Dropdown -->
+      <select id="student_select"></select>
+
+      <!-- Image Upload Section -->
+      <input type="file" id="image_upload" accept="image/*" />
+      <button class="btn" onclick="uploadImage()">📤 Upload Image</button>
+
+      <div id="images_container"></div>
+
+      <button class="btn btn-danger" onclick="deleteFolder()">🗑 Delete Selected Folder</button>
+
+      <a href="{{ url_for('home') }}" class="btn">🏠 Back to Home</a>
+    </div>
+  </body>
 </html>
