@@ -64,3 +64,48 @@ th {
     background-color: #28a745;
     color: white;
 }
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    max-width: 800px;
+    margin: 20px auto;
+    text-align: center;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+.btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+video, img {
+    max-width: 100%;
+    height: auto;
+    border: 2px solid #000;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+#previewVideo, #videoStream {
+    display: none;
+    width: 640px;  /* Fixed width */
+    height: 360px; /* Fixed height */
+}

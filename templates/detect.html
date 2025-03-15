@@ -4,22 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Face Detection</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
     <div class="container">
         <h1>🎥 Face Detection</h1>
 
+        <!-- Upload Video Section -->
         <h2>Upload Recorded Video</h2>
-        <form action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data">
-            <input type="file" name="video" required>
+
+
+        <!-- Video Preview Before Uploading -->
+        <video id="previewVideo" width="720" height="480" controls style="display: none;"></video>
+        <form id="uploadForm" action="{{ url_for('upload_video') }}" method="POST" enctype="multipart/form-data">
+            <input type="file" name="video" id="videoInput" required>
             <button type="submit" class="btn">Upload & Detect</button>
         </form>
-
+        <!-- Live Processed Video Stream -->
+        <h2>Real-Time Processing</h2>
+        <img id="videoStream" src="" width="720" height="480" style="display: none; border: 2px solid #000;">
         <h2>Or Start Real-Time Detection</h2>
-        <a href="{{ url_for('detect_realtime') }}" class="btn">📡 Start Webcam</a>
+
+        <a href="{{ url_for('realtime_page') }}" class="btn">📷 Open Real-Time Detection</a>
 
         <a href="{{ url_for('home') }}" class="btn">⬅️ Back</a>
+
+
     </div>
+
+    <script>
+        document.getElementById('videoInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const videoPreview = document.getElementById('previewVideo');
+                videoPreview.src = URL.createObjectURL(file);
+                videoPreview.style.display = "block";
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Stop normal form submission
+            
+            const formData = new FormData(this);
+            fetch("{{ url_for('upload_video') }}", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.video_url) {
+                    // Show real-time detected video
+                    const videoStream = document.getElementById('videoStream');
+                    videoStream.src = data.video_url;
+                    videoStream.style.display = "block";
+                } else {
+                    alert("Error processing video");
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        });
+    </script>
 </body>
 </html>

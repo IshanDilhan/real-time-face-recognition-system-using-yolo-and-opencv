@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Face Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Real-Time Face Detection</h1>
+
+        <!-- Live Video Stream -->
+        <img id="videoStream" src="" width="640" height="360" style="border: 2px solid #000; display: none;">
+
+        <!-- Start & Stop Buttons -->
+        <button id="startRealtime" class="btn">▶ Start Detection</button>
+        <button id="stopRealtime" class="btn" style="display:none;">⏹ Stop Detection</button>
+
+        <!-- Back Button -->
+        <a href="{{ url_for('home') }}" class="btn">⬅️ Back</a>
+    </div>
+
+    <script>
+        document.getElementById('startRealtime').addEventListener('click', function() {
+            document.getElementById('videoStream').src = "/start_realtime";
+            document.getElementById('videoStream').style.display = "block";
+            document.getElementById('stopRealtime').style.display = "inline-block";
+            this.style.display = "none";
+        });
+
+        document.getElementById('stopRealtime').addEventListener('click', function() {
+            fetch("/stop_realtime")
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('videoStream').src = "";
+                document.getElementById('videoStream').style.display = "none";
+                document.getElementById('startRealtime').style.display = "inline-block";
+                this.style.display = "none";
+                console.log(data.message);
+            });
+        });
+    </script>
+</body>
+</html>
