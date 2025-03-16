@@ -4,28 +4,165 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Records</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 20px;
+            text-align: center;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #fff;
+            display: none; /* Initially hidden */
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #007BFF;
+            color: white;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #28a745;
+            color: white;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+        }
+
+        .btn {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .log-btn {
+            background-color: #17a2b8;
+            color: white;
+        }
+    </style>
+
+    <script>
+        function fetchAttendance() {
+            fetch("/get_attendance")
+                .then(response => response.json())
+                .then(data => {
+                    let table = document.getElementById("attendance_table");
+                    let presentList = document.getElementById("present_students");
+
+                    table.innerHTML = "";  // Clear table before updating
+                    presentList.innerHTML = "";  // Clear present students list
+
+                    let presentStudents = new Set(); // To store unique student names
+
+                    data.forEach(record => {
+                        let row = table.insertRow();
+                        row.insertCell(0).innerText = record.student_name;
+                        row.insertCell(1).innerText = record.detected_time;
+                        row.insertCell(2).innerText = record.accuracy + "%";
+
+                        // Add unique students to the present list
+                        if (record.student_name !== "Unknown") {
+                            presentStudents.add(record.student_name);
+                        }
+                    });
+
+                    // Display Present Students
+                    presentStudents.forEach(student => {
+                        let li = document.createElement("li");
+                        li.innerText = student;
+                        presentList.appendChild(li);
+                    });
+                });
+        }
+
+        function clearAttendance() {
+            fetch("/clear_attendance", { method: "DELETE" })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    fetchAttendance(); // Refresh data
+                });
+        }
+
+        function toggleActivityLog() {
+            let logTable = document.getElementById("log_table");
+
+            if (logTable.style.display === "none") {
+                logTable.style.display = "table";
+            } else {
+                logTable.style.display = "none";
+            }
+        }
+
+        // Fetch data when the page loads
+        window.onload = fetchAttendance;
+    </script>
 </head>
 <body>
+
     <div class="container">
-        <h1>📋 Attendance Records</h1>
-        <table>
+        <h1>Attendance Records</h1>
+
+        <!-- Present Students Section -->
+        <h2>Present Students</h2>
+        <ul id="present_students"></ul>
+
+        <!-- Activity Log (Initially Hidden) -->
+        <button class="btn log-btn" onclick="toggleActivityLog()">Activity Log</button>
+        <table id="log_table">
             <thead>
                 <tr>
                     <th>Student Name</th>
-                    <th>Timestamp</th>
+                    <th>Detected Time</th>
+                    <th>Accuracy</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for record in records %}
-                <tr>
-                    <td>{{ record.student }}</td>
-                    <td>{{ record.timestamp }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
+            <tbody id="attendance_table"></tbody>
         </table>
-        <a href="{{ url_for('home') }}" class="btn">⬅️ Back</a>
+
+        <button class="btn delete-btn" onclick="clearAttendance()">Delete All Records</button>
     </div>
+
 </body>
 </html>

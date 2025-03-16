@@ -8,6 +8,9 @@ import threading
 from deepface import DeepFace
 from ultralytics import YOLO
 from werkzeug.utils import secure_filename
+from pymongo import MongoClient
+from datetime import datetime
+
 
 app = Flask(__name__)
 
@@ -24,6 +27,20 @@ app.config["VIDEO_FOLDER"] = VIDEO_UPLOAD_FOLDER
 stop_detection = False
 # Load YOLO Model
 face_model = YOLO("model/best.pt")
+
+client = MongoClient("mongodb+srv://ishanwaruna20:ishan123@cluster0.8qgy1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+db = client["attendance_db"]
+attendance_collection = db["attendance_records"]
+
+@app.route("/test_mongodb")
+def test_mongodb():
+    try:
+        # Check if MongoDB is connected by running a simple command
+        client.server_info()  # This will raise an exception if the connection fails
+        return jsonify({"status": "success", "message": "Connected to MongoDB"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 def encode_student_faces():
     """Encodes student images and saves embeddings."""
@@ -102,6 +119,15 @@ def process_video(video_path):  # Ensure function accepts video_path
                         if similarity < min_distance and similarity < 10:
                             min_distance = similarity
                             recognized_student = student  
+                    accuracy = round(100 - (min_distance * 10), 2)  # Example accuracy calculation
+
+                    # Insert attendance data into MongoDB
+                    if recognized_student != "Unknown":
+                        attendance_collection.insert_one({
+                            "student_name": recognized_student,
+                            "detected_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "accuracy": accuracy
+                        })
                     
                     cv2.putText(frame, recognized_student, (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
@@ -223,7 +249,7 @@ def generate_frames():
     cap = cv2.VideoCapture(0)  # Open Webcam
 
     while True:
-        if stop_detection:  # Check if stop is requested
+        if stop_detection:
             break
 
         success, frame = cap.read()
@@ -253,7 +279,19 @@ def generate_frames():
                             min_distance = similarity
                             recognized_student = student
 
-                    cv2.putText(frame, recognized_student, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    accuracy = round(100 - (min_distance * 10), 2)  # Example accuracy calculation
+
+                    # Insert attendance data into MongoDB
+                    if recognized_student != "Unknown":
+                        attendance_collection.insert_one({
+                            "student_name": recognized_student,
+                            "detected_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "accuracy": accuracy
+                        })
+
+                    # Display recognized student
+                    cv2.putText(frame, f"{recognized_student} ({accuracy}%)", (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
                 except Exception as e:
@@ -267,6 +305,7 @@ def generate_frames():
 
     cap.release()
     print("✅ Real-time detection stopped.")  # Debugging log
+
     
 # Load or compute student encodings
 if os.path.exists(ENCODINGS_FILE):
@@ -277,7 +316,7 @@ else:
     student_encodings = {}
 
 def stream_video(video_path):
-    """Streams processed video frames with detected faces."""
+    """Streams processed video frames with detected faces and marks attendance."""
     cap = cv2.VideoCapture(video_path)
 
     while cap.isOpened():
@@ -310,7 +349,22 @@ def stream_video(video_path):
                 
                     cv2.putText(frame, recognized_student, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                
+
+                    # ✅ Mark Attendance in MongoDB (if enabled)
+                    if recognized_student != "Unknown":
+                        detected_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        attendance_data = {
+                            "student_name": recognized_student,
+                            "detected_time": detected_time,
+                            "accuracy": round(100 - (min_distance * 10), 2)  # Convert similarity to percentage
+                        }
+
+                        try:
+                            attendance_collection.insert_one(attendance_data)  # Store in MongoDB
+                            print(f"✅ Attendance marked for {recognized_student} at {detected_time}")
+                        except Exception as e:
+                            print(f"⚠️ Error saving to MongoDB: {e}")
+
                 except Exception as e:
                     print(f"⚠️ Error processing face: {e}")
 
@@ -321,6 +375,7 @@ def stream_video(video_path):
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
     cap.release()
+
 
 # Function to save encodings
 def save_encodings():
@@ -404,18 +459,32 @@ def delete_folder():
     return jsonify({'status': 'error', 'message': 'Folder not found'})
 
 
+
+
 # Home Page
 @app.route("/")
 def home():
     return render_template("index.html")
 
-# View Attendance (Dummy Page since MongoDB is commented)
+# Render Attendance Page
 @app.route("/attendance")
 def attendance():
-    # If MongoDB is used, uncomment the next line
-    # records = attendance_collection.find()
-    records = []  # Empty records since MongoDB is disabled
-    return render_template("results.html", records=records)
+    return render_template("result.html")
+
+# Fetch Attendance Data from MongoDB
+@app.route("/get_attendance")
+def get_attendance():
+    try:
+        records = attendance_collection.find({}, {"_id": 0})  # Fetch all records, excluding _id
+        data = list(records)  # Convert MongoDB cursor to a list
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/clear_attendance", methods=["DELETE"])
+def clear_attendance():
+    attendance_collection.delete_many({})  # Delete all records
+    return jsonify({"message": "All attendance records deleted successfully."})
 
 @app.route("/detect")
 def detect():
