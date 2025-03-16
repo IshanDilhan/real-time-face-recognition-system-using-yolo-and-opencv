@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FaceTrack Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script>
+        function resetEncodings() {
+            if (confirm("Are you sure you want to reset encodings? This will delete and regenerate them. please wait for resposce it will be 2 min")) {
+                fetch("/reset_encodings", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message); // Show success or error message
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("done!");
+                });
+            }
+        }
+    </script>
+    
     <style>
         /* General Page Styling */
         body {
@@ -53,7 +69,8 @@
         <a href="{{ url_for('detect') }}" class="btn">🎥 Face Detection</a>
         <a href="{{ url_for('realtime_page') }}" class="btn">📷 Open Real-Time Detection</a>
         <a href="{{ url_for('attendance') }}" class="btn">📋 View Attendance</a>
-        <a href="{{ url_for('home') }}" class="btn">🏠 Home</a>
+        <a href="#" class="btn" onclick="resetEncodings()">🔄 Reset Encodings</a>
+
     </div>
 </body>
 </html>

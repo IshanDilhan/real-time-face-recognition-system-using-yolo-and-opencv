@@ -41,7 +41,7 @@ def test_mongodb():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
+student_encodings = {}
 def encode_student_faces():
     """Encodes student images and saves embeddings."""
     global student_encodings
@@ -73,6 +73,16 @@ def encode_student_faces():
     print("✅ Encodings saved!")
 
 encode_student_faces()  # Load student encodings
+ 
+@app.route("/reset_encodings", methods=["POST"])
+def reset_encodings():
+    """Deletes student_encodings.pkl and regenerates encodings."""
+    if os.path.exists(ENCODINGS_FILE):
+        os.remove(ENCODINGS_FILE)
+        print("✅ Deleted existing encodings.")
+
+    response = encode_student_faces()  # Call function to regenerate encodings
+    return jsonify(response)
 
 
 
@@ -307,13 +317,7 @@ def generate_frames():
     print("✅ Real-time detection stopped.")  # Debugging log
 
     
-# Load or compute student encodings
-if os.path.exists(ENCODINGS_FILE):
-    with open(ENCODINGS_FILE, "rb") as f:
-        student_encodings = pickle.load(f)
-    print("✅ Loaded existing student encodings.")
-else:
-    student_encodings = {}
+
 
 def stream_video(video_path):
     """Streams processed video frames with detected faces and marks attendance."""
