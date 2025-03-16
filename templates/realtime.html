@@ -7,14 +7,66 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #74ebd5, #acb6e5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #74ebd5, #acb6e5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow-y: auto;
+    margin: 0;
+}
+
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 700px;
+    margin-top: 20px;
+}
+
+.video-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 20px;
+}
+
+/* Center the video */
+#videoStream {
+    display: none;
+    border: 2px solid #000;
+    margin: 20px auto; /* Center horizontally */
+}
+
+/* Center buttons */
+.btn-container {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* Space between buttons */
+    margin-top: 10px;
+}
+
+.btn {
+    display: inline-block;
+    background: #3498db;
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn:hover {
+    background: #2980b9;
+}
+
     </style>
 </head>
 <body>
@@ -23,13 +75,20 @@
 
         <!-- Live Video Stream -->
         <img id="videoStream" src="" width="640" height="360" style="border: 2px solid #000; display: none;">
+       <!-- Live Video Stream -->
+<div class="video-container">
+    <img id="videoStream" src="" width="640" height="360">
+</div>
 
-        <!-- Start & Stop Buttons -->
-        <button id="startRealtime" class="btn">▶ Start Detection</button>
-        <button id="stopRealtime" class="btn" style="display:none;">⏹ Stop Detection</button>
+<!-- Buttons Section -->
+<div class="btn-container">
+    <button id="startRealtime" class="btn">▶ Start Detection</button>
+    <button id="stopRealtime" class="btn" style="display:none;">⏹ Stop Detection</button>
+</div>
 
-        <!-- Back Button -->
-        <a href="{{ url_for('home') }}" class="btn">⬅️ Back</a>
+<!-- Back Button -->
+<a href="{{ url_for('home') }}" class="btn">⬅️ Back</a>
+
     </div>
 
     <script>

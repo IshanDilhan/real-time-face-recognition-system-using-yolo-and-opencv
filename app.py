@@ -10,7 +10,7 @@ from ultralytics import YOLO
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 from datetime import datetime
-
+from threading import Lock
 
 app = Flask(__name__)
 
@@ -41,36 +41,60 @@ def test_mongodb():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+encoding_lock = Lock()
 student_encodings = {}
-def encode_student_faces():
-    """Encodes student images and saves embeddings."""
-    global student_encodings
-    if os.path.exists(ENCODINGS_FILE):
-        with open(ENCODINGS_FILE, "rb") as f:
-            student_encodings = pickle.load(f)
-        print("✅ Loaded existing student encodings.")
-        return
 
-    print("🔄 Encoding student images...")
-    for student_folder in os.listdir(STUDENT_IMAGES_PATH):
-        student_path = os.path.join(STUDENT_IMAGES_PATH, student_folder)
-        if os.path.isdir(student_path):
+def encode_student_faces():
+    """Encodes student images, saves embeddings, and logs progress."""
+    global student_encodings
+
+    with encoding_lock:  # Prevents concurrent modification
+        print("🔄 Encoding student images...")
+
+        # Load existing encodings if available
+        if os.path.exists(ENCODINGS_FILE):
+            try:
+                with open(ENCODINGS_FILE, "rb") as f:
+                    student_encodings = pickle.load(f)
+                print("✅ Loaded existing student encodings.")
+                return
+            except Exception as e:
+                print(f"⚠️ Error loading encodings file: {e}")
+
+        student_encodings = {}  # Reset dictionary
+
+        # Iterate through student folders
+        for student_folder in os.listdir(STUDENT_IMAGES_PATH):
+            student_path = os.path.join(STUDENT_IMAGES_PATH, student_folder)
+            if not os.path.isdir(student_path):
+                continue  # Skip non-directory files
+            
+            print(f"📂 Processing {student_folder}...")
             encodings = []
+
             for img_name in os.listdir(student_path):
                 img_path = os.path.join(student_path, img_name)
                 try:
                     embedding = DeepFace.represent(img_path, model_name="Facenet")[0]['embedding']
                     encodings.append(np.array(embedding))
+                    print(f"  ✅ Encoded: {img_name}")
                 except Exception as e:
-                    print(f"⚠️ Skipping {img_path}: {e}")
+                    print(f"  ⚠️ Error processing {img_name}: {e}")
 
+            # Store the average encoding for the student
             if encodings:
                 student_encodings[student_folder] = np.mean(encodings, axis=0)
-                print(f"✅ Encoded: {student_folder}")
+                print(f"✅ Stored encoding for {student_folder} ({len(encodings)} images).")
+            else:
+                print(f"⚠️ No valid encodings for {student_folder}. Skipping.")
 
-    with open(ENCODINGS_FILE, "wb") as f:
-        pickle.dump(student_encodings, f)
-    print("✅ Encodings saved!")
+        # Save the encodings to a file
+        try:
+            with open(ENCODINGS_FILE, "wb") as f:
+                pickle.dump(student_encodings, f)
+            print("✅ All encodings saved successfully!")
+        except Exception as e:
+            print(f"⚠️ Error saving encodings file: {e}")
 
 encode_student_faces()  # Load student encodings
  
@@ -101,13 +125,19 @@ def upload_video():
     return jsonify({"video_url": "/video_feed?file=" + filename})
 
 
-def process_video(video_path):  # Ensure function accepts video_path
+def process_video(video_path):
     cap = cv2.VideoCapture(video_path)
+    frame_skip = 5  # Process every 5th frame
+    frame_count = 0
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
+
+        frame_count += 1
+        if frame_count % frame_skip != 0:  
+            continue  # Skip this frame for speed optimization
 
         results = face_model(frame)  # Detect faces
         
@@ -129,6 +159,7 @@ def process_video(video_path):  # Ensure function accepts video_path
                         if similarity < min_distance and similarity < 10:
                             min_distance = similarity
                             recognized_student = student  
+                    
                     accuracy = round(100 - (min_distance * 10), 2)  # Example accuracy calculation
 
                     # Insert attendance data into MongoDB
@@ -139,7 +170,10 @@ def process_video(video_path):  # Ensure function accepts video_path
                             "accuracy": accuracy
                         })
                     
-                    cv2.putText(frame, recognized_student, (x1, y1 - 10),
+
+
+
+                    cv2.putText(frame, f"{recognized_student} ({accuracy}%)", (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
@@ -155,6 +189,7 @@ def process_video(video_path):  # Ensure function accepts video_path
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
     cap.release()
+
 
 
 
@@ -224,8 +259,11 @@ def process_uploaded_video(video_path):  # ✅ Renamed function
                         if similarity < min_distance and similarity < 10:
                             min_distance = similarity
                             recognized_student = student
-                
-                    cv2.putText(frame, recognized_student, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    accuracy = round(100 - (min_distance * 10), 2)
+
+
+                    cv2.putText(frame, f"{recognized_student} ({accuracy}%)", (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 
                 except Exception as e:
@@ -381,10 +419,7 @@ def stream_video(video_path):
     cap.release()
 
 
-# Function to save encodings
-def save_encodings():
-    with open(ENCODINGS_FILE, "wb") as f:
-        pickle.dump(student_encodings, f)
+
 
 # 🔹 Fetch Student List
 @app.route('/get_students', methods=['GET'])

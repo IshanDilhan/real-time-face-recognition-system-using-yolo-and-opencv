@@ -102,10 +102,11 @@ video, img {
     border: 2px solid #000;
     border-radius: 8px;
     margin-top: 10px;
+    align-items: center;
 }
 
 #previewVideo, #videoStream {
     display: none;
-    width: 640px;  /* Fixed width */
-    height: 360px; /* Fixed height */
+    width: 540px;  /* Fixed width */
+    height: 500px; /* Fixed height */
 }
