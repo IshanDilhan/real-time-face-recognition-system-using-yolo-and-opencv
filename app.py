@@ -166,7 +166,7 @@ def video_feed():
         print("❌ ERROR: No file parameter provided in request.")
         return jsonify({"error": "No file specified"}), 400
 
-    video_path = os.path.join(app.config["UPLOAD_FOLDER"], video_file)
+    video_path = os.path.join(UPLOAD_FOLDER, video_file)
     
     if not os.path.exists(video_path):
         print(f"❌ ERROR: File '{video_path}' not found.")
