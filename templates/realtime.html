@@ -83,6 +83,7 @@
 <!-- Buttons Section -->
 <div class="btn-container">
     <button id="startRealtime" class="btn">▶ Start Detection</button>
+    <button id="startwithesp3" class="btn">▶ Start Detection with esp32</button>
     <button id="stopRealtime" class="btn" style="display:none;">⏹ Stop Detection</button>
 </div>
 
@@ -94,6 +95,12 @@
     <script>
         document.getElementById('startRealtime').addEventListener('click', function() {
             document.getElementById('videoStream').src = "/start_realtime";
+            document.getElementById('videoStream').style.display = "block";
+            document.getElementById('stopRealtime').style.display = "inline-block";
+            this.style.display = "none";
+        });
+        document.getElementById('startwithesp3').addEventListener('click', function() {
+            document.getElementById('videoStream').src = "/startwithesp3";
             document.getElementById('videoStream').style.display = "block";
             document.getElementById('stopRealtime').style.display = "inline-block";
             this.style.display = "none";

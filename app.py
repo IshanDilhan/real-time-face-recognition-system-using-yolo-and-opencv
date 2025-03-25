@@ -1,3 +1,4 @@
+import requests
 from flask import Flask, render_template, Response,request, redirect, url_for, jsonify, send_from_directory
 import os
 import cv2
@@ -9,7 +10,7 @@ from deepface import DeepFace
 from ultralytics import YOLO
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Lock
 
 app = Flask(__name__)
@@ -286,6 +287,74 @@ def start_realtime():
     stop_detection = False  # Reset stop flag when starting
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+ESP32_STREAM_URL = "http://192.168.8.164:81/stream"
+
+def get_esp32_frame():
+    """Retrieve a frame from ESP32-CAM MJPEG stream."""
+    # stream = requests.get(ESP32_STREAM_URL, stream=True)
+    stream = requests.get(ESP32_STREAM_URL, stream=True)
+    byte_data = b""
+    
+    for chunk in stream.iter_content(chunk_size=1024):
+        byte_data += chunk
+        a = byte_data.find(b'\xff\xd8')  # Start of JPEG
+        b = byte_data.find(b'\xff\xd9')  # End of JPEG
+        
+        if a != -1 and b != -1:
+            jpg = byte_data[a:b+2]
+            byte_data = byte_data[b+2:]
+            frame = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
+            return frame
+
+def generate_frames_for_esp32():
+    """Generate MJPEG frames for streaming."""
+    while True:
+        frame = get_esp32_frame()
+        if frame is None:
+            continue
+        
+        frame = cv2.resize(frame, (640, 480))
+        results = face_model(frame)
+
+        for r in results:
+            for box in r.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])  # Bounding box
+                face_crop = frame[y1:y2, x1:x2]  # Crop detected face
+
+                if face_crop.shape[0] == 0 or face_crop.shape[1] == 0:
+                    continue
+
+                try:
+                    face_crop_rgb = cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB)
+                    face_embedding = DeepFace.represent(face_crop_rgb, model_name="Facenet", enforce_detection=False)[0]['embedding']
+                    face_embedding = np.array(face_embedding)
+
+                    recognized_student = "Unknown"
+                    min_distance = float("inf")
+
+                    for student, encoding in student_encodings.items():
+                        similarity = np.linalg.norm(encoding - face_embedding)
+
+                        if similarity < min_distance and similarity < 10:
+                            min_distance = similarity
+                            recognized_student = student
+                
+                    cv2.putText(frame, recognized_student, (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                
+                except Exception as e:
+                    print(f"⚠️ Error processing face: {e}")
+
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+@app.route('/startwithesp3')
+def start_with_esp3():
+    return Response(generate_frames1(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @app.route('/stop_realtime')
 def stop_realtime():
     global stop_detection
@@ -294,7 +363,7 @@ def stop_realtime():
 
 def generate_frames():
     global stop_detection
-    cap = cv2.VideoCapture(0)  # Open Webcam
+    cap = cv2.VideoCapture(1)  # Open Webcam
 
     while True:
         if stop_detection:
@@ -304,7 +373,7 @@ def generate_frames():
         if not success:
             break
 
-        results = face_model(frame)  # Detect faces
+        results = face_model(frame,conf=0.6)  # Detect faces
         for r in results:
             for box in r.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -354,7 +423,98 @@ def generate_frames():
     cap.release()
     print("✅ Real-time detection stopped.")  # Debugging log
 
-    
+# Define the URLs
+RECOGNIZED_URL = "http://192.168.8.119/on"
+UNKNOWN_URL = "http://192.168.8.119/off"
+
+# Dictionary to track last detection time of each student
+last_detection_time = {}
+
+def generate_frames1():
+    global stop_detection
+    cap = cv2.VideoCapture(1)  # Open Webcam
+
+    while True:
+        if stop_detection:
+            break
+
+        success, frame = cap.read()
+        if not success:
+            break
+
+        results = face_model(frame, conf=0.6)  # Detect faces
+        detected_face = False  # Flag for detected known faces
+        recognized_student = "Unknown"
+
+        for r in results:
+            for box in r.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                face_crop = frame[y1:y2, x1:x2]
+
+                if face_crop.shape[0] == 0 or face_crop.shape[1] == 0:
+                    continue
+
+                try:
+                    face_crop_rgb = cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB)
+                    face_embedding = DeepFace.represent(face_crop_rgb, model_name="Facenet", enforce_detection=False)[0]['embedding']
+                    face_embedding = np.array(face_embedding)
+
+                    recognized_student = "Unknown"
+                    min_distance = float("inf")
+
+                    for student, encoding in student_encodings.items():
+                        similarity = np.linalg.norm(encoding - face_embedding)
+                        if similarity < min_distance and similarity < 10:
+                            min_distance = similarity
+                            recognized_student = student
+
+                    accuracy = round(100 - (min_distance * 10), 2)  # Example accuracy calculation
+
+                    # Insert attendance data into MongoDB
+                    if recognized_student != "Unknown":
+                        attendance_collection.insert_one({
+                            "student_name": recognized_student,
+                            "detected_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "accuracy": accuracy
+                        })
+                        detected_face = True
+
+                        # Send request only if 10 seconds have passed since last detection
+                        current_time = datetime.now()
+                        if (recognized_student not in last_detection_time or 
+                            current_time - last_detection_time[recognized_student] > timedelta(seconds=10)):
+                            
+                            requests.get(RECOGNIZED_URL)
+                            print(f"✅ Recognized {recognized_student} - Request sent to ON")
+                            last_detection_time[recognized_student] = current_time
+
+                    # Display recognized student
+                    cv2.putText(frame, f"{recognized_student} ({accuracy}%)", (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                except Exception as e:
+                    print(f"⚠️ Error processing face: {e}")
+
+        # If no recognized face, send OFF request (but avoid spamming)
+        if not detected_face:
+            current_time = datetime.now()
+            if "Unknown" not in last_detection_time or current_time - last_detection_time["Unknown"] > timedelta(seconds=10):
+                try:
+                    requests.get(UNKNOWN_URL)
+                    print("❌ Unknown face - Request sent to OFF")
+                    last_detection_time["Unknown"] = current_time
+                except requests.exceptions.RequestException as e:
+                    print(f"❌ Error sending OFF request: {e}")
+
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+    cap.release()
+    print("✅ Real-time detection stopped.")
 
 
 def stream_video(video_path):

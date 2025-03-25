@@ -4,7 +4,6 @@ import numpy as np
 from deepface import DeepFace
 import os
 import pickle
-import requests  # Handle the ESP32 stream
 
 # Load the YOLO face detection model
 face_model = YOLO("../model/best.pt")  # Update with your trained model
@@ -51,30 +50,14 @@ def encode_student_faces():
 # Encode student faces before starting recognition
 encode_student_faces()
 
-# ESP32-CAM Stream URL (Update if needed)
-ESP32_STREAM_URL = "http://192.168.8.164:81/stream"
+# Open webcam
+cap = cv2.VideoCapture(0)
 
-# Function to get frames from the ESP32-CAM MJPEG stream
-def get_esp32_frame():
-    stream = requests.get(ESP32_STREAM_URL, stream=True)
-    byte_data = b""
-    
-    for chunk in stream.iter_content(chunk_size=1024):
-        byte_data += chunk
-        a = byte_data.find(b'\xff\xd8')  # Start of JPEG
-        b = byte_data.find(b'\xff\xd9')  # End of JPEG
-        
-        if a != -1 and b != -1:
-            jpg = byte_data[a:b+2]
-            byte_data = byte_data[b+2:]
-            frame = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
-            return frame
-
-while True:
-    frame = get_esp32_frame()
-    if frame is None:
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
         print("❌ Failed to retrieve frame")
-        continue
+        break
 
     # Resize frame for better processing speed
     frame = cv2.resize(frame, (640, 480))
@@ -123,4 +106,5 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to exit
         break
 
+cap.release()
 cv2.destroyAllWindows()
